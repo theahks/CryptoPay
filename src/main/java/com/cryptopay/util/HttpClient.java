@@ -5,29 +5,22 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
+import okhttp3.*;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Утилитный класс для выполнения HTTP-запросов к CryptoBot API.
  */
 @Slf4j
 public class HttpClient {
-    private final CloseableHttpClient httpClient;
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+    private static final int TIMEOUT_SECONDS = 30;
+
+    private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String apiToken;
     private final String baseUrl;
@@ -44,7 +37,13 @@ public class HttpClient {
         
         this.apiToken = apiToken;
         this.baseUrl = baseUrl;
-        this.httpClient = HttpClients.createDefault();
+        
+        this.httpClient = new OkHttpClient.Builder()
+                .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .build();
+                
         this.objectMapper = new ObjectMapper();
         JsonUtils.configureObjectMapper(this.objectMapper);
     }
@@ -60,20 +59,19 @@ public class HttpClient {
      * @throws CryptoPayApiException если возникла ошибка при выполнении запроса
      */
     public <T> T get(String method, Map<String, String> params, TypeReference<T> typeReference) {
-        try {
-            URIBuilder uriBuilder = new URIBuilder(baseUrl + method);
-            
-            if (params != null && !params.isEmpty()) {
-                params.forEach(uriBuilder::addParameter);
-            }
-            
-            HttpGet httpGet = new HttpGet(uriBuilder.build());
-            addAuthHeader(httpGet);
-            
-            return executeRequest(httpGet, typeReference);
-        } catch (URISyntaxException e) {
-            throw new CryptoPayApiException("Неверный URL: " + baseUrl + method, e);
+        HttpUrl.Builder urlBuilder = Objects.requireNonNull(HttpUrl.parse(baseUrl + method)).newBuilder();
+        
+        if (params != null && !params.isEmpty()) {
+            params.forEach(urlBuilder::addQueryParameter);
         }
+        
+        Request request = new Request.Builder()
+                .url(urlBuilder.build())
+                .header("Crypto-Pay-API-Token", apiToken)
+                .get()
+                .build();
+        
+        return executeRequest(request, typeReference);
     }
 
     /**
@@ -88,31 +86,26 @@ public class HttpClient {
      */
     public <T> T post(String method, Object body, TypeReference<T> typeReference) {
         try {
-            URI uri = new URI(baseUrl + method);
-            HttpPost httpPost = new HttpPost(uri);
-            addAuthHeader(httpPost);
+            String url = baseUrl + method;
             
+            RequestBody requestBody = null;
             if (body != null) {
                 String jsonBody = objectMapper.writeValueAsString(body);
-                StringEntity entity = new StringEntity(jsonBody, ContentType.APPLICATION_JSON);
-                httpPost.setEntity(entity);
+                requestBody = RequestBody.create(jsonBody, JSON);
+            } else {
+                requestBody = RequestBody.create("", null);
             }
             
-            return executeRequest(httpPost, typeReference);
-        } catch (URISyntaxException e) {
-            throw new CryptoPayApiException("Неверный URL: " + baseUrl + method, e);
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("Crypto-Pay-API-Token", apiToken)
+                    .post(requestBody)
+                    .build();
+            
+            return executeRequest(request, typeReference);
         } catch (IOException e) {
             throw new CryptoPayApiException("Ошибка при сериализации тела запроса", e);
         }
-    }
-
-    /**
-     * Добавляет заголовок авторизации к запросу.
-     *
-     * @param request запрос
-     */
-    private void addAuthHeader(HttpRequestBase request) {
-        request.addHeader("Crypto-Pay-API-Token", apiToken);
     }
 
     /**
@@ -124,22 +117,25 @@ public class HttpClient {
      * @return результат запроса
      * @throws CryptoPayApiException если возникла ошибка при выполнении запроса
      */
-    private <T> T executeRequest(HttpRequestBase request, TypeReference<T> typeReference) {
-        try {
-            HttpResponse response = httpClient.execute(request);
-            HttpEntity entity = response.getEntity();
+    private <T> T executeRequest(Request request, TypeReference<T> typeReference) {
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new CryptoPayApiException(
+                        "Ошибка HTTP запроса: " + response.code() + " " + response.message(), null, null);
+            }
             
-            if (entity != null) {
-                String responseBody = EntityUtils.toString(entity);
-                log.debug("Ответ API: {}", responseBody);
-                
-                try {
-                    return objectMapper.readValue(responseBody, typeReference);
-                } catch (IOException e) {
-                    throw new CryptoPayApiException("Ошибка при десериализации ответа: " + responseBody, e);
-                }
-            } else {
-                throw new CryptoPayApiException("Пустой ответ от сервера", null);
+            ResponseBody responseBody = response.body();
+            if (responseBody == null) {
+                throw new CryptoPayApiException("Пустой ответ от сервера", null, null);
+            }
+            
+            String responseString = responseBody.string();
+            log.debug("Ответ API: {}", responseString);
+            
+            try {
+                return objectMapper.readValue(responseString, typeReference);
+            } catch (IOException e) {
+                throw new CryptoPayApiException("Ошибка при десериализации ответа: " + responseString, e);
             }
         } catch (IOException e) {
             throw new CryptoPayApiException("Ошибка при выполнении HTTP-запроса", e);

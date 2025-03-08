@@ -448,13 +448,11 @@ public class CryptoPay {
         /**
          * Смещение списка.
          */
-        @Builder.Default
         protected Integer offset = null;
         
         /**
          * Количество элементов в списке.
          */
-        @Builder.Default
         protected Integer count = null;
         
         /**
@@ -483,22 +481,19 @@ public class CryptoPay {
     @Getter
     public static class GetInvoicesParams extends BaseFilterParams {
         /**
-         * Статусы счетов.
+         * Статусы инвойсов.
          */
-        @Builder.Default
-        private final List<String> status = null;
+        private List<String> status = null;
         
         /**
-         * Код криптовалюты.
+         * Валюта инвойса.
          */
-        @Builder.Default
-        private final String asset = null;
+        private String asset = null;
         
         /**
-         * Идентификатор счета для получения счетов с идентификатором меньше указанного.
+         * Идентификатор инвойса.
          */
-        @Builder.Default
-        private final Long invoiceId = null;
+        private Long invoiceId = null;
         
         /**
          * Построитель для GetInvoicesParams.
@@ -621,20 +616,17 @@ public class CryptoPay {
         /**
          * Статусы чеков.
          */
-        @Builder.Default
-        private final List<String> status = null;
+        private List<String> status = null;
         
         /**
-         * Код криптовалюты.
+         * Валюта чека.
          */
-        @Builder.Default
-        private final String asset = null;
+        private String asset = null;
         
         /**
-         * Идентификатор чека для получения чеков с идентификатором меньше указанного.
+         * Идентификатор чека.
          */
-        @Builder.Default
-        private final Long checkId = null;
+        private Long checkId = null;
         
         /**
          * Построитель для GetChecksParams.
@@ -755,16 +747,14 @@ public class CryptoPay {
     @Getter
     public static class GetTransfersParams extends BaseFilterParams {
         /**
-         * Код криптовалюты.
+         * Валюта перевода.
          */
-        @Builder.Default
-        private final String asset = null;
+        private String asset = null;
         
         /**
-         * Идентификатор перевода для получения переводов с идентификатором меньше указанного.
+         * Идентификатор перевода.
          */
-        @Builder.Default
-        private final Long transferId = null;
+        private Long transferId = null;
         
         /**
          * Построитель для GetTransfersParams.
