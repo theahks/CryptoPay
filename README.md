@@ -1,3 +1,5 @@
+[![](https://jitpack.io/v/theahks/CryptoPay.svg)](https://jitpack.io/#theahks/CryptoPay)
+
 # CryptoPay Java SDK
 
 Java SDK для работы с API CryptoBot ([@CryptoBot](https://t.me/CryptoBot)).
@@ -12,27 +14,6 @@ Java SDK для работы с API CryptoBot ([@CryptoBot](https://t.me/CryptoB
 - Получать информацию о балансах и обменных курсах
 - И многое другое
 
-## Установка
-
-### Maven
-
-Добавьте следующую зависимость в ваш `pom.xml`:
-
-```xml
-<dependency>
-    <groupId>com.cryptopay</groupId>
-    <artifactId>cryptopay-sdk</artifactId>
-    <version>1.0.0</version>
-</dependency>
-```
-
-### Gradle
-
-Добавьте следующую зависимость в ваш `build.gradle`:
-
-```groovy
-implementation 'com.cryptopay:cryptopay-sdk:1.0.0'
-```
 
 ## Начало работы
 
